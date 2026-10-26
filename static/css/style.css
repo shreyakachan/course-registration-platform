@@ -1,0 +1,151 @@
+/* Modern Design System for Course Registration Web App */
+:root {
+    --bg-page: #f8fafc;
+    --navy-900: #0f172a;
+    --navy-800: #1e293b;
+    --navy-700: #334155;
+    --primary-blue: #2563eb;
+    --primary-hover: #1d4ed8;
+    --card-bg: #ffffff;
+    --border-color: #e2e8f0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: var(--bg-page);
+    color: var(--navy-700);
+    line-height: 1.6;
+}
+
+.text-navy {
+    color: var(--navy-900) !important;
+}
+
+.bg-dark-navy {
+    background-color: var(--navy-900) !important;
+}
+
+.text-primary-accent {
+    color: #38bdf8 !important;
+}
+
+.fs-7 {
+    font-size: 0.75rem;
+}
+
+/* Navbar Brand & Links */
+.brand-icon {
+    font-size: 1.35rem;
+}
+
+.navbar .nav-link {
+    color: #cbd5e1 !important;
+    transition: color 0.2s ease;
+    padding: 0.5rem 0.85rem;
+    border-radius: 6px;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link.active {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Hero Section */
+.hero-card {
+    background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+    border: 1px solid #bfdbfe;
+}
+
+/* Course Cards */
+.course-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color) !important;
+    transition: all 0.25s ease-in-out;
+}
+
+.course-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -10px rgba(15, 23, 42, 0.12) !important;
+    border-color: #cbd5e1 !important;
+}
+
+.course-code-badge {
+    background-color: #dbeafe;
+    color: #1e40af;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    letter-spacing: 0.5px;
+}
+
+/* Form Styles */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.15);
+}
+
+.input-group-text {
+    color: #64748b;
+}
+
+/* Icon & Avatar Circles */
+.icon-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #e0e7ff;
+    color: #4338ca;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pulse Indicator for Health Check */
+.pulse-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: #22c55e;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+
+/* Primary Button Styling */
+.btn-primary {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
