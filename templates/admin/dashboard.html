@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Administrator Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+    <!-- Admin Welcome Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <div class="badge bg-warning-subtle text-warning border border-warning-subtle mb-1 px-3 py-1 rounded-pill">
+                <i class="bi bi-shield-lock-fill me-1"></i> Elevated Privilege Session
+            </div>
+            <h1 class="h3 fw-bold text-navy mb-0">Administrator Control Center</h1>
+            <p class="text-muted small mb-0">Monitor platform metrics, manage course capacity, and audit student registrations.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.create_course') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Add Course
+            </a>
+            <a href="{{ url_for('admin.registrations') }}" class="btn btn-outline-secondary btn-sm px-3">
+                <i class="bi bi-people me-1"></i> All Enrollments
+            </a>
+        </div>
+    </div>
+
+    <!-- Administrative KPI Metric Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-primary-subtle text-primary">
+                    <i class="bi bi-collection-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Total Courses</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_courses }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-success-subtle text-success">
+                    <i class="bi bi-person-check-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Active Enrollments</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_enrollments }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-info-subtle text-info">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Registered Students</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_students }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-warning-subtle text-warning">
+                    <i class="bi bi-speedometer"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Capacity Utilization</div>
+                    <div class="fs-4 fw-bold text-navy">{{ utilization_rate }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Course Catalog Overview -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0 rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <h2 class="h5 fw-bold text-navy mb-0"><i class="bi bi-book-half text-primary me-2"></i>Course Offerings</h2>
+                    <a href="{{ url_for('admin.courses') }}" class="btn btn-outline-primary btn-sm">Manage All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-4">Code</th>
+                                    <th>Course Title</th>
+                                    <th>Capacity</th>
+                                    <th>Enrolled</th>
+                                    <th>Available</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for course in courses %}
+                                <tr>
+                                    <td class="ps-4"><span class="course-code-tag">{{ course.code }}</span></td>
+                                    <td class="fw-semibold text-navy">{{ course.title }}</td>
+                                    <td>{{ course.capacity }}</td>
+                                    <td><span class="badge bg-light text-dark border">{{ course.enrolled_count }}</span></td>
+                                    <td>
+                                        {% if course.is_full %}
+                                            <span class="badge bg-danger">FULL</span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success">{{ course.available_seats }} seats</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Registrations Feed -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0 rounded-4 h-100 overflow-hidden">
+                <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+                    <h2 class="h5 fw-bold text-navy mb-0"><i class="bi bi-clock-history text-info me-2"></i>Recent Enrollments</h2>
+                    <a href="{{ url_for('admin.registrations') }}" class="btn btn-outline-secondary btn-sm">Audit Log</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_registrations %}
+                    <ul class="list-group list-group-flush">
+                        {% for reg in recent_registrations %}
+                        <li class="list-group-item p-3 d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold text-navy small">{{ reg.student.name }}</div>
+                                <div class="text-muted small">{{ reg.student.email }} • <span class="badge bg-light text-dark border">{{ reg.course.code }}</span></div>
+                            </div>
+                            <div class="text-end">
+                                {% if reg.status == 'ENROLLED' %}
+                                    <span class="badge bg-success-subtle text-success rounded-pill">Active</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill">Cancelled</span>
+                                {% endif %}
+                                <div class="text-muted small">{{ reg.registered_at.strftime('%H:%M UTC') }}</div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="p-4 text-center text-muted small">No enrollments recorded yet.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

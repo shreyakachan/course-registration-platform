@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+    <!-- Dashboard Welcome Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-navy mb-1">
+                <i class="bi bi-speedometer2 text-primary me-2"></i>Student Dashboard
+            </h1>
+            <p class="text-muted small mb-0">Welcome back, <strong>{{ current_user.name }}</strong>! Here is your current academic registration summary.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('courses.catalog') }}" class="btn btn-accent btn-sm shadow-sm px-3">
+                <i class="bi bi-plus-circle me-1"></i> Enroll in New Course
+            </a>
+        </div>
+    </div>
+
+    <!-- Student Metrics Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-primary-subtle text-primary">
+                    <i class="bi bi-journal-bookmark-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">My Active Courses</div>
+                    <div class="fs-4 fw-bold text-navy">{{ active_registrations|length }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-success-subtle text-success">
+                    <i class="bi bi-award-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Registered Credits</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_credits }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-info-subtle text-info">
+                    <i class="bi bi-book"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Catalog Offerings</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_available_courses }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="stat-card shadow-sm h-100 d-flex align-items-center gap-3">
+                <div class="stat-icon bg-warning-subtle text-warning">
+                    <i class="bi bi-pie-chart-fill"></i>
+                </div>
+                <div>
+                    <div class="text-muted small fw-medium">Open Campus Seats</div>
+                    <div class="fs-4 fw-bold text-navy">{{ total_remaining_seats }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Enrollments List -->
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+        <div class="card-header bg-white py-3 px-4 d-flex justify-content-between align-items-center border-bottom">
+            <h2 class="h5 fw-bold text-navy mb-0"><i class="bi bi-journal-check text-primary me-2"></i>My Enrolled Courses</h2>
+            <a href="{{ url_for('student.my_registrations') }}" class="btn btn-outline-primary btn-sm">
+                Manage Registrations
+            </a>
+        </div>
+        <div class="card-body p-0">
+            {% if active_registrations %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Code</th>
+                            <th>Course Title</th>
+                            <th>Instructor</th>
+                            <th>Credits</th>
+                            <th>Enrolled Date</th>
+                            <th class="text-end pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reg in active_registrations %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="course-code-tag">{{ reg.course.code }}</span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('courses.detail', course_id=reg.course.id) }}" class="fw-semibold text-navy text-decoration-none">
+                                    {{ reg.course.title }}
+                                </a>
+                                <div class="text-muted small">{{ reg.course.category }}</div>
+                            </td>
+                            <td class="text-secondary small">{{ reg.course.instructor }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ reg.course.credits }} Credits</span></td>
+                            <td class="text-muted small">{{ reg.registered_at.strftime('%b %d, %Y') }}</td>
+                            <td class="text-end pe-4">
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('courses.detail', course_id=reg.course.id) }}" class="btn btn-sm btn-outline-secondary" title="View Syllabus">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <form action="{{ url_for('student.cancel_registration', reg_id=reg.id) }}" method="POST" data-confirm="Are you sure you want to cancel your enrollment in {{ reg.course.code }}? This will immediately release your reserved seat.">
+                                        {{ form.hidden_tag() }}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Drop Course">
+                                            <i class="bi bi-x-circle"></i> Drop
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-5 text-center">
+                <div class="stat-icon bg-light text-muted mx-auto mb-3" style="width: 60px; height: 60px;">
+                    <i class="bi bi-journal-x fs-3"></i>
+                </div>
+                <h3 class="h6 fw-bold text-navy mb-1">No Active Course Enrollments</h3>
+                <p class="text-muted small mb-3">You have not registered for any academic courses yet.</p>
+                <a href="{{ url_for('courses.catalog') }}" class="btn btn-primary btn-sm px-4">
+                    <i class="bi bi-search me-1"></i> Browse Open Courses
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

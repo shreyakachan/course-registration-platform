@@ -1,27 +1,28 @@
 services:
-  course-app:
+  course-platform:
     build:
       context: .
       dockerfile: Dockerfile
-    image: course-registration-app:latest
+    image: course-registration-platform:latest
     container_name: course-registration-container
     restart: unless-stopped
     ports:
       - "5000:5000"
     environment:
       - DATA_DIR=/app/data
-      - SECRET_KEY=production-secure-demo-secret-key-2026
+      - FLASK_CONFIG=production
+      - SECRET_KEY=production-secure-university-key-2026
       - FLASK_DEBUG=false
     volumes:
-      - course_db_volume:/app/data
+      - course_registration_data:/app/data
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
-      interval: 10s
+      interval: 12s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 8s
 
 volumes:
-  course_db_volume:
+  course_registration_data:
     name: course_registration_data
     driver: local

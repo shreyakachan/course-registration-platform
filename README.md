@@ -1,413 +1,458 @@
-# Automated Application Deployment Using Jenkins and Docker
-### Course Registration Web App — Complete End-to-End CI/CD Pipeline
+# Automated Course Registration Platform with Jenkins and Docker CI/CD
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
-[![Flask](https://img.shields.io/badge/Flask-3.1.0-black.svg)](https://flask.palletsprojects.com/)
+[![Flask](https://img.shields.io/badge/Flask-3.1.3-black.svg)](https://flask.palletsprojects.com/)
+[![SQLAlchemy](https://img.shields.io/badge/ORM-SQLAlchemy%202.0-red.svg)](https://www.sqlalchemy.org/)
 [![SQLite](https://img.shields.io/badge/Database-SQLite3-lightgrey.svg)](https://www.sqlite.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
-[![Jenkins](https://img.shields.io/badge/CI%2FCD-Jenkins%20Pipeline-D24939.svg)](https://www.jenkins.io/)
-[![pytest](https://img.shields.io/badge/Testing-pytest%20v9-green.svg)](https://docs.pytest.org/)
+[![Jenkins](https://img.shields.io/badge/CI%2FCD-7--Stage%20Pipeline-D24939.svg)](https://www.jenkins.io/)
+[![pytest](https://img.shields.io/badge/Tests-25%20Passed-brightgreen.svg)](https://docs.pytest.org/)
 
 ---
 
-## 1. Project Overview & Problem Statement
+## 1. Abstract
 
-In traditional software delivery, manual testing, container building, and server deployments are error-prone, slow, and frequently cause production outages.
-
-This project delivers a **production-ready, automated Continuous Integration and Continuous Deployment (CI/CD) pipeline** for a Python Flask application (**Course Registration Web App**). The pipeline guarantees that:
-1. Every code change pushed to GitHub triggers an automated build.
-2. Code is validated with unit and integration tests using `pytest`.
-3. If any test fails, deployment is **immediately aborted**, preventing faulty code from reaching production.
-4. Only verified code is packaged into an optimized Docker container and launched with Gunicorn.
-5. Persistent SQLite storage ensures student registrations survive container restarts and upgrades.
-6. Automated health verification probes the `/health` endpoint before declaring the deployment successful.
+Modern higher-education institutions require dependable, fault-tolerant software delivery systems to handle course enrollment spikes without service degradation or manual deployment errors. The **Automated Course Registration Platform** is a full-stack, enterprise-grade academic portal built with Python, Flask, SQLAlchemy, and Bootstrap 5, backed by an automated 7-stage Continuous Integration and Continuous Deployment (CI/CD) pipeline powered by Jenkins, Docker, and GitHub. The platform enforces strict role-based access control (RBAC), database-level seat capacity constraints, atomic transactions, and zero-downtime container rollouts with persistent storage and automated health verification.
 
 ---
 
-## 2. Architecture & CI/CD Workflow
+## 2. Problem Statement
+
+Manual deployment and testing workflows in university IT environments suffer from:
+1. **Human Error**: Forgotten database migrations, missing environment variables, and unexecuted test suites cause frequent production outages.
+2. **Overbooking & Concurrency Bugs**: Inadequate database constraints allow students to bypass course seat limits or register duplicate enrollments.
+3. **Data Loss During Upgrades**: Naive container updates discard local database states, erasing student registrations.
+4. **Slow Feedback Loops**: Developers discover syntax or business logic bugs hours or days after commits rather than within seconds.
+
+---
+
+## 3. Objectives & Proposed Solution
+
+### Objectives
+- Automate testing, image packaging, and deployment from Git commit to production.
+- Provide a robust role-based portal for students (enrollment, dashboards, drops) and administrators (curriculum CRUD, capacity management, audit logs).
+- Maintain 100% database persistence across container destruction and upgrades.
+- Enforce automated quality gates: reject any build that fails unit, integration, or security tests.
+
+### Proposed Solution
+An end-to-end DevOps pipeline where every GitHub push triggers a 7-stage Jenkins declarative pipeline. The pipeline runs an isolated 25-test pytest suite, packages a secure non-root Docker container running Gunicorn, mounts a persistent SQLite Docker volume, and polls an HTTP `/health` probe before finalizing deployment.
+
+---
+
+## 4. System & CI/CD Architecture
 
 ```
 +----------------------------------------------------------------------------------------------------+
-|                                    CI / CD PIPELINE ARCHITECTURE                                   |
+|                                      END-TO-END CI/CD WORKFLOW                                     |
 +----------------------------------------------------------------------------------------------------+
 
    [ Developer Machine ]
              |
-             | (git push)
+             | (git push origin main)
              v
    [ GitHub Repository ]
              |
-             | (Webhook / SCM Polling)
+             | (Webhook trigger / SCM Polling: H/5 * * * *)
              v
-   +---------------------------------------------------------------------------------------+
-   |                                   JENKINS CI/CD SERVER                                |
-   |                                                                                       |
-   |   [Stage 1: Checkout]  ===>  [Stage 2: Dependencies]  ===>  [Stage 3: Pytest Suite]    |
-   |   Pulls latest code          Creates venv & installs       Runs isolated unit &       |
-   |                              Flask, Gunicorn, pytest       integration tests          |
-   |                                                                    |                  |
-   |                                                    +---------------+                  |
-   |                                                    | (Pass)            | (Fail)       |
-   |                                                    v                   v              |
-   |                                          [Stage 4: Docker Build]  [STOP PIPELINE]     |
-   |                                          Builds Docker image      Mark build failed   |
-   |                                                    |                                  |
-   |                                                    v                                  |
-   |                                          [Stage 5: Safe Deploy]                       |
-   |                                          Replaces container &                         |
-   |                                          attaches volume                              |
-   |                                                    |                                  |
-   |                                                    v                                  |
-   |                                          [Stage 6: Health Verify]                     |
-   |                                          Polls http://localhost:5000/health           |
-   +---------------------------------------------------------------------------------------+
-                                                        |
-                                                        v
-                                    +---------------------------------------+
-                                    |        DOCKER HOST ENVIRONMENT        |
-                                    |                                       |
-                                    |   [ Course Registration Container ]   |
-                                    |     - Gunicorn WSGI Server (0.0.0.0)  |
-                                    |     - Flask Web Application           |
-                                    |     - Port 5000:5000                  |
-                                    |                   |                   |
-                                    |                   v                   |
-                                    |   [ Persistent Docker Volume ]        |
-                                    |     course_registration_data          |
-                                    |     `-> /app/data/course_app.db       |
-                                    +---------------------------------------+
++----------------------------------------------------------------------------------------------------+
+|                                        JENKINS CI/CD SERVER                                        |
+|                                                                                                    |
+|  [Stage 1: Checkout]  ===>  [Stage 2: Dependencies]  ===>  [Stage 3: Automated Pytest Suite]       |
+|  Clones Git repository      Prepares isolated venv         Executes 25 Unit/Integration Tests      |
+|                             Installs requirements                         |                        |
+|                                                              +------------+                        |
+|                                                              | (Pass)            | (Fail)          |
+|                                                              v                   v                 |
+|                                                    [Stage 4: Docker Build]  [HALT PIPELINE]        |
+|                                                    Builds image with        Stop immediately;      |
+|                                                    commit/build tag         No deployment occurs   |
+|                                                              |                                     |
+|                                                              v                                     |
+|                                                    [Stage 5: Deploy Container]                     |
+|                                                    Safely stops old container;                     |
+|                                                    Mounts 'course_registration_data' volume        |
+|                                                              |                                     |
+|                                                              v                                     |
+|                                                    [Stage 6: Verify Health]                        |
+|                                                    Probes http://localhost:5000/health (retries)   |
+|                                                              |                                     |
+|                                                              v                                     |
+|                                                    [Stage 7: Report Status]                        |
+|                                                    Logs deployment telemetry & metrics             |
++----------------------------------------------------------------------------------------------------+
+                                                               |
+                                                               v
+                                           +---------------------------------------+
+                                           |        DOCKER HOST ENVIRONMENT        |
+                                           |                                       |
+                                           |   [ Course Registration Container ]   |
+                                           |     - Gunicorn WSGI Server (0.0.0.0)  |
+                                           |     - Python 3.11-slim (Non-root)     |
+                                           |     - Port 5000:5000                  |
+                                           |                   |                   |
+                                           |                   v                   |
+                                           |   [ Persistent Docker Volume ]        |
+                                           |     course_registration_data          |
+                                           |     `-> /app/data/course_app.db       |
+                                           +---------------------------------------+
 ```
 
 ---
 
-## 3. Technology Stack
+## 5. Technology Stack
 
-| Layer | Technology | Purpose |
+| Component | Technology | Rationale |
 | :--- | :--- | :--- |
-| **Backend Framework** | Python 3.11 & Flask 3.1 | Web application routing, validation, and API |
-| **WSGI Server** | Gunicorn 23.0 | Production HTTP WSGI server for Docker |
-| **Database** | SQLite 3 | Embedded SQL database for courses & enrollments |
-| **Frontend UI** | HTML5, CSS3, Bootstrap 5.3, Jinja2 | Modern responsive UI, cards, badges & alerts |
-| **Automated Testing** | pytest 9.1 | Automated test execution with isolated temp DBs |
-| **Containerization** | Docker & Docker Compose | Multi-stage image build and volume persistence |
-| **CI/CD Automation** | Jenkins (Declarative Pipeline) | 6-stage automated build, test, deploy & health check |
-| **Version Control** | Git & GitHub | Source code tracking and pipeline triggers |
+| **Backend Framework** | Python 3.11 & Flask 3.1 | Lightweight, modular micro-framework with Blueprint routing |
+| **Database ORM** | SQLAlchemy 2.0 & Flask-SQLAlchemy | Typed models, atomic transactions, relationship management |
+| **Database Engine** | SQLite 3 | Embedded zero-configuration SQL database with persistent volumes |
+| **Authentication** | Flask-Login & Werkzeug | Salted PBKDF2 password hashing, secure session cookies |
+| **Form Validation** | Flask-WTF & WTForms | Server-side CSRF validation, email normalization, field limits |
+| **Frontend UI** | HTML5, CSS3, Bootstrap 5.3, Jinja2 | Responsive SaaS university theme (Navy/Indigo/Slate) |
+| **Automated Testing** | pytest 9.1 & Flask Test Client | 25 automated tests with isolated temporary SQLite DBs |
+| **WSGI Server** | Gunicorn 23.0 | Production HTTP multi-worker server for Linux containers |
+| **Containerization** | Docker & Docker Compose | Multi-stage image build, non-root user, persistent volume |
+| **CI/CD Automation** | Jenkins Declarative Pipeline | 7-stage automated build, test, deploy, and health verification |
+| **Version Control** | Git & GitHub | Distributed version control and automated SCM triggers |
 
 ---
 
-## 4. Project Directory Structure
+## 6. Database Schema & Business Constraints
+
+```
++---------------------------------+          +--------------------------------------+
+|             users               |          |               courses                |
++---------------------------------+          +--------------------------------------+
+| id            : INTEGER (PK)    |          | id          : INTEGER (PK)           |
+| name          : VARCHAR(100)    |          | code        : VARCHAR(20) (UQ, IDX)  |
+| email         : VARCHAR(120)(UQ)|          | title       : VARCHAR(150)           |
+| password_hash : VARCHAR(256)    |          | category    : VARCHAR(60)            |
+| role          : VARCHAR(20)     |          | instructor  : VARCHAR(100)           |
+| created_at    : DATETIME        |          | credits     : INTEGER                |
++---------------------------------+          | duration    : VARCHAR(50)            |
+               |                             | capacity    : INTEGER                |
+               | 1                           | created_at  : DATETIME               |
+               |                             +--------------------------------------+
+               | N                                              | 1
+               v                                                v N
++-----------------------------------------------------------------------------------+
+|                                   registrations                                   |
++-----------------------------------------------------------------------------------+
+| id            : INTEGER (PK)                                                      |
+| student_id    : INTEGER (FK -> users.id, ON DELETE CASCADE, IDX)                  |
+| course_id     : INTEGER (FK -> courses.id, ON DELETE CASCADE, IDX)                |
+| status        : VARCHAR(20) ('ENROLLED', 'CANCELLED')                             |
+| registered_at : DATETIME                                                          |
+| UNIQUE CONSTRAINT: (student_id, course_id)                                        |
++-----------------------------------------------------------------------------------+
+```
+
+### Core Business Rules
+1. **Duplicate Prevention**: A student cannot enroll in the same course twice (`uq_student_course` unique constraint).
+2. **Seat Limit Enforcement**: A student cannot register for a course with 0 available seats.
+3. **Capacity Boundary**: An administrator cannot reduce course capacity below current active enrollments.
+4. **Safe Deletion**: An administrator cannot delete a course that has active enrolled students.
+5. **Seat Release on Cancellation**: Dropping a course marks status as `CANCELLED` and immediately releases the reserved seat back to the course pool.
+6. **Role Isolation**: Only administrators can access `/admin/*` routes; students attempting access receive HTTP 403 Forbidden.
+
+---
+
+## 7. Folder Structure
 
 ```
 DEVOPS/
-├── app.py                      # Flask application factory, database initialization & routes
-├── requirements.txt            # Python dependencies (Flask, Gunicorn, pytest, requests)
-├── Dockerfile                  # Production container definition (python:3.11-slim, healthcheck)
-├── docker-compose.yml          # Docker Compose specification with persistent named volume
-├── Jenkinsfile                 # Declarative 6-stage CI/CD pipeline definition
-├── .dockerignore               # Files excluded from Docker image build context
-├── .gitignore                  # Files excluded from Git version control
-├── static/
-│   └── css/
-│       └── style.css           # Custom design system tokens, card hover effects & badges
+├── app.py                      # Application factory & Jinja context processors
+├── config.py                   # Development, Testing, Production configurations
+├── extensions.py               # SQLAlchemy, LoginManager, CSRFProtect instances
+├── requirements.txt            # Locked project dependencies
+├── Dockerfile                  # Production container definition (python:3.11-slim, Gunicorn)
+├── docker-compose.yml          # Container composition with named volume persistence
+├── Jenkinsfile                 # 7-stage declarative CI/CD pipeline
+├── .dockerignore               # Optimized Docker build context exclusions
+├── .gitignore                  # Git exclusions (caches, .db, .venv)
+├── models/
+│   ├── __init__.py             # Model exports
+│   ├── user.py                 # User model (UserMixin, hashing, RBAC)
+│   ├── course.py               # Course model (real-time capacity properties)
+│   └── registration.py         # Registration model (unique constraints, cancel)
+├── forms/
+│   ├── __init__.py             # Form exports
+│   ├── auth_forms.py           # LoginForm, RegisterForm, ProfileForm
+│   ├── course_forms.py         # CourseForm with capacity validation
+│   └── registration_forms.py   # EmptyForm for CSRF on POST actions
+├── routes/
+│   ├── __init__.py             # Blueprint registrations
+│   ├── main.py                 # Landing page & /health probe
+│   ├── auth.py                 # Login, register, logout, profile
+│   ├── courses.py              # Catalog, filters, search, detail, enroll
+│   ├── student.py              # Student dashboard & registration management
+│   ├── admin.py                # Admin control center, course CRUD, audit logs
+│   └── errors.py               # Custom 403, 404, 500 error handlers
+├── services/
+│   ├── __init__.py             # Service exports
+│   └── seed_service.py         # Idempotent database seeder (courses & accounts)
+├── utils/
+│   ├── __init__.py             # Utility exports
+│   └── decorators.py           # @admin_required security decorator
 ├── templates/
-│   ├── base.html               # Shared layout, navigation bar, and flash alert containers
-│   ├── index.html              # Course catalog, live seat availability, registration form
-│   └── registrations.html      # Table of registered students with timestamps & badges
+│   ├── base.html               # Master layout, navy navigation, flash alerts
+│   ├── index.html              # Landing page with live database statistics
+│   ├── auth/                   # Login, register, profile templates
+│   ├── courses/                # Course catalog & detail templates
+│   ├── student/                # Student dashboard & enrollments templates
+│   ├── admin/                  # Admin dashboard, course form, audit log
+│   └── errors/                 # Custom 403, 404, 500 pages
+├── static/
+│   ├── css/style.css           # Modern university design system tokens
+│   └── js/main.js              # Alert auto-dismiss & confirmation handlers
 ├── tests/
-│   ├── __init__.py             # Test package identifier
-│   └── test_app.py             # 7 pytest test cases with isolated temporary SQLite databases
-└── README.md                   # Comprehensive documentation, setup guide & demonstration manual
+│   ├── __init__.py             # Test package marker
+│   ├── conftest.py             # Isolated DB fixtures and role clients
+│   ├── test_app.py             # Full student journey integration test
+│   ├── test_auth.py            # Authentication, registration, RBAC tests
+│   ├── test_courses.py         # Catalog search, filter, detail tests
+│   ├── test_registration.py    # Seat limits, duplicate prevention, drops
+│   ├── test_admin.py           # Admin CRUD, capacity boundaries, audit logs
+│   └── test_health.py          # /health HTTP 200 & 500 failure detection
+└── README.md                   # Comprehensive engineering documentation
 ```
 
 ---
 
-## 5. Application Features & Rules
-
-1. **Course Catalog**: Home page (`/`) displays available courses, instructors, descriptions, total seats, and real-time remaining seats.
-2. **Dynamic Badging**: Course cards display real-time status badges (e.g., `Available`, `Only X Seats Left`, or `FULL`).
-3. **Student Registration Form**: Validates student name, email, and course selection.
-4. **Duplicate Prevention**: Rejects duplicate registrations if the same email attempts to register for the same course more than once.
-5. **Seat Limit Enforcement**: Blocks registrations when a course has 0 available seats left.
-6. **Registered Students View**: Dedicated `/registrations` page displaying student names, emails, enrolled courses, and enrollment timestamps.
-7. **Health API Endpoint**: `/health` returns HTTP 200 and `{"status": "healthy", "service": "course-registration-app", "version": "1.0.0", "database": "connected"}`.
-8. **Automatic Database Seeding**: Pre-populates 4 sample courses (`DEV101`, `PY202`, `SEC303`, `K8S404`) on startup if the database is uninitialized.
-
----
-
-## 6. Step-by-Step Local Setup & Execution (Without Docker)
+## 8. Complete Local Setup & Execution
 
 ### Prerequisites
-- Python 3.9+ installed (`python --version`)
-- Git installed (`git --version`)
+- Python 3.9+ (`python --version`)
+- Git (`git --version`)
 
-### 1. Create and Activate Virtual Environment
-**On Windows (PowerShell):**
+### Step 1: Create Virtual Environment & Install Dependencies
+**Windows (PowerShell):**
 ```powershell
 python -m venv venv
 .\venv\Scripts\activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-**On Linux / macOS (Bash):**
+**Linux / macOS (Bash):**
 ```bash
 python3 -m venv venv
 source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-### 2. Install Project Dependencies
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### 3. Run the Flask Web Application Locally
+### Step 2: Run Application Locally
 ```bash
 python app.py
 ```
-*Output:*
-```
-Starting Course Registration Web App on http://0.0.0.0:5000
- * Serving Flask app 'app'
- * Debug mode: off
- * Running on all addresses (0.0.0.0)
- * Running on http://127.0.0.1:5000
-```
 
-Open your browser and navigate to:
-- **Home & Registration**: [http://localhost:5000](http://localhost:5000)
-- **Registered Students**: [http://localhost:5000/registrations](http://localhost:5000/registrations)
-- **Health Check API**: [http://localhost:5000/health](http://localhost:5000/health)
+Open your browser to:
+- **Home Portal**: `http://localhost:5000`
+- **Course Catalog**: `http://localhost:5000/courses/`
+- **Sign In**: `http://localhost:5000/login`
+- **Health Verification API**: `http://localhost:5000/health`
+
+### Pre-Seeded Demo Credentials
+| Role | Email | Password | Privileges |
+| :--- | :--- | :--- | :--- |
+| **Student** | `student@university.edu` | `Student123!` | Browse courses, enroll, view dashboard, drop courses |
+| **Admin** | `admin@university.edu` | `Admin123!` | Create/edit courses, manage capacity, audit all enrollments |
 
 ---
 
-## 7. Running Automated Tests with Pytest
+## 9. Running Automated Tests with Pytest
 
-To execute the test suite across all 7 automated test scenarios:
+Execute the complete 25-test automated test suite:
 
 ```bash
 python -m pytest -v
 ```
 
-### Expected Output:
-```
+### Verified Test Results
+```text
 ============================= test session starts =============================
 platform win32 -- Python 3.11.9, pytest-9.1.1
 rootdir: C:\Users\...\DEVOPS
-collected 7 items
+collected 25 items
 
-tests/test_app.py::test_home_page_status_and_content PASSED              [ 14%]
-tests/test_app.py::test_health_endpoint_healthy PASSED                   [ 28%]
-tests/test_app.py::test_successful_registration PASSED                   [ 42%]
-tests/test_app.py::test_duplicate_registration_rejected PASSED           [ 57%]
-tests/test_app.py::test_registration_rejected_when_course_full PASSED    [ 71%]
-tests/test_app.py::test_invalid_form_submissions PASSED                  [ 85%]
-tests/test_app.py::test_registrations_page_empty_and_populated PASSED    [100%]
+tests/test_admin.py::test_admin_dashboard_renders_kpis PASSED            [  4%]
+tests/test_admin.py::test_admin_can_create_new_course PASSED             [  8%]
+tests/test_admin.py::test_admin_capacity_cannot_be_reduced_below_enrolled_count PASSED [ 12%]
+tests/test_admin.py::test_admin_cannot_delete_course_with_active_enrollments PASSED [ 16%]
+tests/test_admin.py::test_admin_can_delete_course_without_enrollments PASSED [ 20%]
+tests/test_admin.py::test_admin_registrations_view_shows_records PASSED  [ 24%]
+tests/test_app.py::test_full_student_journey PASSED                      [ 28%]
+tests/test_auth.py::test_valid_login_succeeds PASSED                     [ 32%]
+tests/test_auth.py::test_invalid_login_fails PASSED                      [ 36%]
+tests/test_auth.py::test_logout_clears_session PASSED                    [ 40%]
+tests/test_auth.py::test_unauthenticated_cannot_access_protected_routes PASSED [ 44%]
+tests/test_auth.py::test_student_cannot_access_admin_dashboard PASSED    [ 48%]
+tests/test_auth.py::test_student_registration_and_duplicate_prevention PASSED [ 52%]
+tests/test_courses.py::test_course_catalog_renders_courses PASSED        [ 56%]
+tests/test_courses.py::test_course_catalog_search_and_filter PASSED      [ 60%]
+tests/test_courses.py::test_course_detail_page_renders_accurately PASSED [ 64%]
+tests/test_courses.py::test_nonexistent_course_returns_404 PASSED        [ 68%]
+tests/test_health.py::test_home_page_renders_successfully PASSED         [ 72%]
+tests/test_health.py::test_health_endpoint_healthy PASSED                [ 76%]
+tests/test_health.py::test_health_endpoint_reports_unhealthy_when_database_fails PASSED [ 80%]
+tests/test_registration.py::test_successful_course_registration PASSED   [ 84%]
+tests/test_registration.py::test_duplicate_registration_rejected PASSED  [ 88%]
+tests/test_registration.py::test_registration_rejected_when_course_full PASSED [ 92%]
+tests/test_registration.py::test_cancellation_releases_seat PASSED       [ 96%]
+tests/test_registration.py::test_unauthorized_cancellation_rejected PASSED [100%]
 
-============================== 7 passed in 1.00s ==============================
+====================== 25 passed in 18.93s =======================
 ```
 
-> **Note on Test Isolation**: Each test automatically instantiates a fresh temporary SQLite database (`tempfile.mkstemp()`). No production or local database data is modified during test runs.
+> **Zero Test Pollution**: Tests utilize a temporary SQLite database (`tempfile.mkstemp()`). Each test function executes within an isolated transaction and removes the temporary database upon teardown.
 
 ---
 
-## 8. Docker & Docker Compose Setup
+## 10. Docker & Docker Compose Operations
 
-### Option A: Using Docker CLI Directly
+### Option A: Using Docker Compose (Recommended)
 ```bash
-# 1. Build the Docker image
-docker build -t course-registration-app:latest .
+# Build and launch application in background
+docker compose up -d --build
 
-# 2. Create the persistent Docker volume
+# View real-time container logs
+docker compose logs -f
+
+# Inspect container health
+docker ps
+
+# Gracefully stop without losing student registrations
+docker compose down
+```
+
+### Option B: Using Docker CLI Directly
+```bash
+# 1. Build image
+docker build -t course-registration-platform:latest .
+
+# 2. Create named persistent volume
 docker volume create course_registration_data
 
-# 3. Run the container
+# 3. Launch container with volume mount
 docker run -d \
   --name course-registration-container \
   --restart unless-stopped \
   -p 5000:5000 \
   -v course_registration_data:/app/data \
-  course-registration-app:latest
-
-# 4. View container status & health
-docker ps
-
-# 5. Check container logs
-docker logs -f course-registration-container
-```
-
-### Option B: Using Docker Compose
-```bash
-# Build and start container in the background
-docker compose up -d --build
-
-# View container logs
-docker compose logs -f
-
-# Stop container without losing data
-docker compose down
-```
-
-### Verify Container Health
-```bash
-curl -i http://localhost:5000/health
-```
-*HTTP Response:*
-```http
-HTTP/1.1 200 OK
-Content-Type: application/json
-
-{
-  "database": "connected",
-  "service": "course-registration-app",
-  "status": "healthy",
-  "version": "1.0.0"
-}
+  -e DATA_DIR=/app/data \
+  -e FLASK_CONFIG=production \
+  -e SECRET_KEY=production-secure-university-key-2026 \
+  course-registration-platform:latest
 ```
 
 ---
 
-## 9. Jenkins CI/CD Pipeline Setup
+## 11. Jenkins CI/CD Pipeline Setup
 
-### 9.1 Required Jenkins Plugins
-Ensure the following plugins are installed under **Manage Jenkins > Plugins > Available Plugins**:
-1. **Pipeline** (workflow-aggregator)
-2. **Git Plugin** (git)
-3. **JUnit Plugin** (junit - to display test reports)
-4. **AnsiColor** (ansicolor - for colored terminal logs)
+### 11.1 Required Jenkins Plugins
+Navigate to **Manage Jenkins > Plugins > Available Plugins** and install:
+1. **Pipeline** (`workflow-aggregator`)
+2. **Git Plugin** (`git`)
+3. **JUnit Plugin** (`junit`)
+4. **AnsiColor** (`ansicolor`)
 
-### 9.2 Jenkins Host Permissions & Docker Access
-If Jenkins runs on Linux/Ubuntu, grant the `jenkins` user access to the Docker daemon:
+### 11.2 Host Permissions for Docker
+On Linux/Ubuntu Jenkins controllers:
 ```bash
 sudo usermod -aG docker jenkins
 sudo systemctl restart jenkins
 ```
-*(On Windows Jenkins, ensure Docker Desktop is running and accessible from PowerShell).*
 
-### 9.3 Create the Pipeline Job in Jenkins
-1. Open Jenkins at `http://localhost:8080`.
-2. Click **New Item**.
-3. Enter item name: `Course-Registration-CI-CD`.
-4. Select **Pipeline** and click **OK**.
-5. In the Job Configuration:
-   - Check **GitHub project** and enter your repository URL (e.g., `https://github.com/your-username/course-registration-ci-cd`).
-   - Under **Build Triggers**, check **Poll SCM** with schedule: `H/5 * * * *` (polls GitHub every 5 minutes).
-   - Under **Pipeline**, select **Pipeline script from SCM**.
+### 11.3 Create the Pipeline Job
+1. Open Jenkins (`http://localhost:8080`).
+2. Click **New Item** > Name: `Course-Registration-Platform` > Select **Pipeline** > Click **OK**.
+3. Under **Build Triggers**, enable **Poll SCM** with schedule: `H/5 * * * *`.
+4. Under **Pipeline**:
+   - Definition: **Pipeline script from SCM**
    - SCM: **Git**
-   - Repository URL: `https://github.com/your-username/course-registration-ci-cd.git`
-   - Branch Specifier: `*/main` (or `*/master`)
+   - Repository URL: `https://github.com/<YOUR_USERNAME>/course-registration-platform.git`
+   - Branch: `*/main`
    - Script Path: `Jenkinsfile`
-6. Click **Save**.
+5. Click **Save**.
 
 ---
 
-## 10. GitHub Integration & Automatic Trigger Setup
+## 12. Step-by-Step Demonstration of Automated Deployment
 
-### Step 1: Initialize Git and Commit All Files Locally
-Run these exact commands in your project directory:
+Follow this exact scenario during viva or practical evaluation to prove that automated CI/CD deployment works:
 
-```bash
-# 1. Initialize local Git repository
-git init
-
-# 2. Add all files
-git add .
-
-# 3. Create initial commit
-git commit -m "feat: Initial commit of Course Registration Web App with tests and Jenkinsfile"
-
-# 4. Set default branch to main
-git branch -M main
-```
-
-### Step 2: Push to GitHub
-1. Go to [GitHub](https://github.com) and click **New Repository**.
-2. Name it `course-registration-ci-cd` (leave README unchecked as we already have one).
-3. Connect and push your local repository:
-
-```bash
-git remote add origin https://github.com/<YOUR_GITHUB_USERNAME>/course-registration-ci-cd.git
-git push -u origin main
-```
-
-### Step 3: Configure GitHub Webhook (Optional for Instant Triggers)
-If your Jenkins server is publicly accessible (or via tools like `ngrok`):
-1. In your GitHub repository, click **Settings > Webhooks > Add webhook**.
-2. **Payload URL**: `http://<YOUR_JENKINS_HOST>:8080/github-webhook/`
-3. **Content type**: `application/json`
-4. Which events? Select: **Just the push event**.
-5. Click **Add webhook**.
-
-> *Note*: If Jenkins is running on a private localhost without a public domain, the **Poll SCM** (`H/5 * * * *`) trigger configured in the `Jenkinsfile` will automatically detect new commits every 5 minutes without needing an external webhook!
-
----
-
-## 11. Demonstrating Automatic Deployment (College Practical Guide)
-
-Follow this exact walkthrough to demonstrate automatic deployment during an evaluation or college presentation:
-
-### Step 1: Run First Build in Jenkins
-1. Go to your `Course-Registration-CI-CD` project in Jenkins.
-2. Click **Build Now**.
-3. Watch the Stage View execute all 6 stages with green checkmarks:
-   - *1. Checkout Source Code*
-   - *2. Prepare Test Environment*
-   - *3. Run Automated Tests* (7/7 passed)
+### Phase 1: Initial Baseline Deployment
+1. In Jenkins, click **Build Now**.
+2. Watch all 7 stages turn green:
+   - *1. Checkout GitHub Source*
+   - *2. Validate Python Project and Install Dependencies*
+   - *3. Run Automated Tests* (25/25 passed)
    - *4. Build Docker Image*
-   - *5. Deploy Application Container*
-   - *6. Verify Deployment Health*
-4. Open `http://localhost:5000` to show the running application.
+   - *5. Deploy New Application Version*
+   - *6. Verify Application Health* (HTTP 200)
+   - *7. Report Final Build Status*
+3. Open `http://localhost:5000` in your browser.
+4. Notice initial title: **`Course Registration Portal`**.
+5. Log in as student (`student@university.edu` / `Student123!`) and enroll in a course.
 
-### Step 2: Demonstrate the Test Safety Gate (Failure Prevention)
-1. Intentionally break a test in `tests/test_app.py` (e.g., change `assert response.status_code == 200` to `500`).
+### Phase 2: Demonstrate the Automated Quality Gate (Test Failure Abort)
+1. Intentionally break a test in `tests/test_health.py` (e.g. change expected status to 999).
 2. Commit and push:
    ```bash
-   git add tests/test_app.py
-   git commit -m "test: simulate broken test"
+   git add tests/test_health.py
+   git commit -m "test: simulate failing test"
    git push origin main
    ```
-3. Jenkins triggers the build.
-4. **Result**: Stage 3 (*Run Automated Tests*) fails! The pipeline halts immediately.
-5. **Observation**: Stages 4, 5, and 6 are **SKIPPED**. The live application at `http://localhost:5000` remains completely unaffected and unharmed!
+3. Jenkins detects the push and runs Stage 3.
+4. **Observation**: Stage 3 fails! The pipeline terminates immediately.
+5. **Result**: Stages 4, 5, 6, and 7 are skipped. The live container remains running and undamaged!
 
-### Step 3: Demonstrate Automatic Deployment with UI Update
+### Phase 3: Demonstrate Automatic Title Update Deployment
 1. Revert the test fix.
-2. Open `templates/index.html` and change the portal subtitle from:
+2. In `templates/index.html` (line 15), change:
    ```html
-   <h1 class="display-6 fw-bold text-navy mb-2">Automated Course Registration Portal</h1>
+   <h1 class="display-6 fw-bold text-white mb-2" id="hero-heading">Course Registration Portal</h1>
    ```
    To:
    ```html
-   <h1 class="display-6 fw-bold text-navy mb-2">Automated Course Registration Portal (v2.0 - Auto Deployed)</h1>
+   <h1 class="display-6 fw-bold text-white mb-2" id="hero-heading">Student Course Registration System</h1>
    ```
 3. Commit and push:
    ```bash
-   git add templates/index.html tests/test_app.py
-   git commit -m "feat(ui): update portal heading to v2.0"
+   git add templates/index.html tests/test_health.py
+   git commit -m "feat(ui): update portal heading to Student Course Registration System"
    git push origin main
    ```
-4. Watch Jenkins detect the change, pass all tests, rebuild the Docker image, safely swap the container, and verify health.
-5. Refresh `http://localhost:5000` in your browser: The new title is live, and all previously registered students remain intact in SQLite!
+4. Observe Jenkins automatically trigger the build, pass all 25 tests, build the updated Docker image, replace the container, and verify `/health`.
+5. Refresh `http://localhost:5000`:
+   - The new heading **`Student Course Registration System`** is live!
+   - Log into the student dashboard: **All previously enrolled courses remain completely intact** because the SQLite database volume was preserved!
 
 ---
 
-## 12. Common Errors and Troubleshooting
+## 13. Troubleshooting Common Issues
 
-| Issue | Root Cause | Solution |
+| Error | Root Cause | Solution |
 | :--- | :--- | :--- |
-| **`docker: command not found` in Jenkins** | Jenkins user cannot access Docker CLI | Ensure Docker is on PATH and run `sudo usermod -aG docker jenkins && sudo systemctl restart jenkins`. |
-| **`Permission denied: /var/run/docker.sock`** | Socket file permissions | Run `sudo chmod 666 /var/run/docker.sock`. |
-| **Port 5000 already in use** | Another app or container is bound to port 5000 | Find and kill the process: `docker stop $(docker ps -q --filter "publish=5000")` or on Windows: `netstat -ano \| findstr :5000`. |
-| **Health check timed out** | Container took longer than expected to start | Increase `MAX_RETRIES` in `Jenkinsfile` stage 6 or check `docker logs course-registration-container`. |
-| **Database locked error** | Simultaneous write locks in SQLite | Handled cleanly in `app.py` with scoped session teardowns and `PRAGMA foreign_keys = ON;`. |
+| **`Permission denied: /var/run/docker.sock`** | Jenkins user lacks socket permissions | Run `sudo usermod -aG docker jenkins && sudo chmod 666 /var/run/docker.sock`. |
+| **`Port 5000 is already in use`** | Previous container or process is bound to 5000 | Run `docker stop $(docker ps -q --filter "publish=5000")` or kill PID via `netstat -ano \| findstr :5000`. |
+| **`OperationalError: database is locked`** | Unclosed connections in SQLite | Handled cleanly in our Application Factory using scoped SQLAlchemy session teardowns. |
+| **`Health probe timeout`** | Container took longer than start period | Increase `start_period` in Dockerfile or increase retries in Stage 6 of `Jenkinsfile`. |
 
 ---
 
-## 13. Suggested Screenshots for Project Report
+## 14. Screenshot Checklist for Project Report
 
-1. **Jenkins Pipeline Stage View**: Showing all 6 stages colored green.
-2. **Pytest Execution Terminal**: Displaying 7 passed tests.
-3. **Application Home Page**: Showing course cards with live seat counts and badges.
-4. **Duplicate Registration Warning**: Red/yellow alert demonstrating constraint validation.
-5. **Course Full Notification**: Error message when attempting to register for a filled course.
-6. **Enrolled Students Table**: Showing registered students and course codes.
-7. **Health API JSON Output**: Browser showing `{"status":"healthy", "database":"connected"}`.
-8. **Docker Container CLI Output**: `docker ps` showing container name and mapped port 5000.
+- [ ] **Jenkins Pipeline Stage View**: All 7 stages showing green execution status.
+- [ ] **Pytest Terminal Output**: 25 passed tests with execution timings.
+- [ ] **Home Page Portal**: Hero banner with live database statistics cards.
+- [ ] **Course Catalog View**: Course cards with real-time seat capacity progress bars.
+- [ ] **Student Dashboard**: Enrolled courses count, registered credits, and course list.
+- [ ] **Course Detail & Enrollment**: Enrollment button with CSRF token.
+- [ ] **Duplicate Enrollment Warning**: Yellow flash alert blocking duplicate course registration.
+- [ ] **Course Full Alert**: Red flash alert blocking registration when seats reach capacity.
+- [ ] **Admin Control Center**: KPI summary cards and recent student registration feed.
+- [ ] **Admin Course Edit**: Validation error preventing capacity reduction below enrolled students.
+- [ ] **Health API Endpoint**: Browser showing `{"status":"healthy","database":"connected"}`.
+- [ ] **Docker CLI**: `docker ps` displaying active container and port mapping.

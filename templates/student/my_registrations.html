@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}My Enrollments{% endblock %}
+
+{% block content %}
+<div class="container py-3">
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-navy mb-1"><i class="bi bi-journal-check text-primary me-2"></i>My Course Enrollments</h1>
+            <p class="text-muted small mb-0">Review active course registrations, completion statuses, and drop courses when permitted.</p>
+        </div>
+        <div>
+            <a href="{{ url_for('courses.catalog') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
+                <i class="bi bi-plus-circle me-1"></i> Register More Courses
+            </a>
+        </div>
+    </div>
+
+    {% if registrations %}
+    <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4"># Reg ID</th>
+                        <th>Course Code</th>
+                        <th>Course Title</th>
+                        <th>Category</th>
+                        <th>Credits</th>
+                        <th>Status</th>
+                        <th>Registered Date</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reg in registrations %}
+                    <tr>
+                        <td class="ps-4 fw-semibold text-muted font-monospace">#REG-{{ reg.id }}</td>
+                        <td><span class="course-code-tag">{{ reg.course.code }}</span></td>
+                        <td>
+                            <a href="{{ url_for('courses.detail', course_id=reg.course.id) }}" class="fw-semibold text-navy text-decoration-none">
+                                {{ reg.course.title }}
+                            </a>
+                            <div class="text-muted small"><i class="bi bi-person me-1"></i>{{ reg.course.instructor }}</div>
+                        </td>
+                        <td class="text-secondary small">{{ reg.course.category }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ reg.course.credits }} Credits</span></td>
+                        <td>
+                            {% if reg.status == 'ENROLLED' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill">
+                                    <i class="bi bi-check-circle-fill me-1"></i> Active
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded-pill">
+                                    <i class="bi bi-dash-circle me-1"></i> Cancelled
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ reg.registered_at.strftime('%b %d, %Y - %H:%M UTC') }}</td>
+                        <td class="text-end pe-4">
+                            {% if reg.status == 'ENROLLED' %}
+                            <form action="{{ url_for('student.cancel_registration', reg_id=reg.id) }}" method="POST" data-confirm="Are you sure you want to drop {{ reg.course.code }}? Your reserved seat will be immediately returned to the course pool.">
+                                {{ form.hidden_tag() }}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-x-circle me-1"></i> Cancel Enrollment
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted small fst-italic">Seat Released</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+        <div class="stat-icon bg-light text-muted mx-auto mb-3" style="width: 70px; height: 70px; font-size: 2rem;">
+            <i class="bi bi-inbox"></i>
+        </div>
+        <h3 class="h5 fw-bold text-navy mb-2">No Registrations Recorded</h3>
+        <p class="text-muted small mb-4">You have not enrolled in any university courses yet.</p>
+        <div>
+            <a href="{{ url_for('courses.catalog') }}" class="btn btn-primary px-4 py-2">
+                <i class="bi bi-grid me-1"></i> Browse Catalog &amp; Register
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
