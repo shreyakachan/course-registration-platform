@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME        = "course-registration-platform"
-        IMAGE_NAME      = "course-registration-platform"
+        APP_NAME        = 'course-registration-platform'
+        IMAGE_NAME      = 'course-registration-platform'
         IMAGE_TAG       = "${BUILD_NUMBER}"
-        CONTAINER_NAME  = "course-registration-container"
-        APP_PORT        = "5000"
-        HEALTH_ENDPOINT = "http://localhost:5000/health"
-        VOLUME_NAME     = "course_registration_data"
+        CONTAINER_NAME  = 'course-registration-container'
+        APP_PORT        = '5000'
+        HEALTH_ENDPOINT = 'http://localhost:5000/health'
+        VOLUME_NAME     = 'course_registration_data'
     }
 
     options {
@@ -23,12 +23,11 @@ pipeline {
     }
 
     stages {
-
         stage('1. Checkout GitHub Source') {
             steps {
-                echo "=========================================================="
-                echo "STAGE 1: CHECKING OUT SOURCE CODE FROM GITHUB"
-                echo "=========================================================="
+                echo '=========================================================='
+                echo 'STAGE 1: CHECKING OUT SOURCE CODE FROM GITHUB'
+                echo '=========================================================='
                 checkout scm
                 script {
                     echo "Build Number : ${env.BUILD_NUMBER}"
@@ -40,9 +39,9 @@ pipeline {
 
         stage('2. Validate Python Project and Install Dependencies') {
             steps {
-                echo "=========================================================="
-                echo "STAGE 2: PREPARING PYTHON ENVIRONMENT & DEPENDENCIES"
-                echo "=========================================================="
+                echo '=========================================================='
+                echo 'STAGE 2: PREPARING PYTHON ENVIRONMENT & DEPENDENCIES'
+                echo '=========================================================='
                 script {
                     if (isUnix()) {
                         sh '''
@@ -65,9 +64,9 @@ pipeline {
 
         stage('3. Run Automated Tests') {
             steps {
-                echo "=========================================================="
-                echo "STAGE 3: EXECUTING AUTOMATED PYTEST SUITE"
-                echo "=========================================================="
+                echo '=========================================================='
+                echo 'STAGE 3: EXECUTING AUTOMATED PYTEST SUITE'
+                echo '=========================================================='
                 script {
                     if (isUnix()) {
                         sh '''
@@ -88,17 +87,17 @@ pipeline {
                     junit allowEmptyResults: true, testResults: 'test-results.xml'
                 }
                 failure {
-                    echo "❌ AUTOMATED TESTS FAILED: Halting pipeline immediately."
-                    echo "Deployment safety gate activated: No Docker image will be built or deployed."
+                    echo '❌ AUTOMATED TESTS FAILED: Halting pipeline immediately.'
+                    echo 'Deployment safety gate activated: No Docker image will be built or deployed.'
                 }
             }
         }
 
         stage('4. Build Docker Image') {
             steps {
-                echo "=========================================================="
+                echo '=========================================================='
                 echo "STAGE 4: BUILDING DOCKER IMAGE [${IMAGE_NAME}:${IMAGE_TAG}]"
-                echo "=========================================================="
+                echo '=========================================================='
                 script {
                     if (isUnix()) {
                         sh """
@@ -115,9 +114,9 @@ pipeline {
 
         stage('5. Deploy New Application Version') {
             steps {
-                echo "=========================================================="
-                echo "STAGE 5: DEPLOYING DOCKER CONTAINER WITH PERSISTENCE"
-                echo "=========================================================="
+                echo '=========================================================='
+                echo 'STAGE 5: DEPLOYING DOCKER CONTAINER WITH PERSISTENCE'
+                echo '=========================================================='
                 script {
                     if (isUnix()) {
                         sh """
@@ -153,9 +152,9 @@ pipeline {
 
         stage('6. Verify Application Health') {
             steps {
-                echo "=========================================================="
+                echo '=========================================================='
                 echo "STAGE 6: VERIFYING CONTAINER HEALTH VIA ${HEALTH_ENDPOINT}"
-                echo "=========================================================="
+                echo '=========================================================='
                 script {
                     if (isUnix()) {
                         sh """
@@ -167,7 +166,7 @@ pipeline {
                             while [ \$RETRY_COUNT -le \$MAX_RETRIES ]; do
                                 echo "Health probe \$RETRY_COUNT of \$MAX_RETRIES..."
                                 HTTP_CODE=\$(curl -s -o health_output.json -w "%{http_code}" ${HEALTH_ENDPOINT} || echo "000")
-                                
+
                                 if [ "\$HTTP_CODE" = "200" ]; then
                                     echo "✅ Health check PASSED with HTTP 200 OK!"
                                     cat health_output.json
@@ -189,9 +188,9 @@ pipeline {
                             fi
                         """
                     } else {
-                        bat '''
-python -c "import time, urllib.request, sys; url='http://localhost:5000/health'; max_tries=12; exec('for i in range(max_tries):\\n try:\\n  r=urllib.request.urlopen(url, timeout=5)\\n  print(\\'Health check PASSED: HTTP %s\\' % r.status)\\n  sys.exit(0 if r.status == 200 else 1)\\n except Exception as e:\\n  print(\\'Health probe %s failed: %s\\' % (i+1, e))\\n  time.sleep(5)'); sys.exit(1)"
-'''
+                        bat """
+                            python -c "import time, urllib.request, json, sys; max_tries=12; [print(f'Health probe {i+1} of {max_tries}...') or (time.sleep(5) if (lambda: [False] if True else [])() else None) or ((urllib.request.urlopen('${HEALTH_ENDPOINT}', timeout=5).getcode() == 200 and (print('✅ Health check PASSED with HTTP 200 OK!') or sys.exit(0))) if True else None) for i in range(max_tries)]; sys.exit(1)"
+                        """
                     }
                 }
             }
@@ -199,9 +198,9 @@ python -c "import time, urllib.request, sys; url='http://localhost:5000/health';
 
         stage('7. Report Final Build Status') {
             steps {
-                echo "=========================================================="
-                echo "STAGE 7: PIPELINE EXECUTION SUMMARY & TELEMETRY"
-                echo "=========================================================="
+                echo '=========================================================='
+                echo 'STAGE 7: PIPELINE EXECUTION SUMMARY & TELEMETRY'
+                echo '=========================================================='
                 script {
                     echo "Application Name : ${APP_NAME}"
                     echo "Deployed Image   : ${IMAGE_NAME}:${IMAGE_TAG}"
@@ -215,10 +214,10 @@ python -c "import time, urllib.request, sys; url='http://localhost:5000/health';
 
     post {
         success {
-            echo "🎉 PIPELINE SUCCESSFUL: Code verified, tested, built, and deployed!"
+            echo '🎉 PIPELINE SUCCESSFUL: Code verified, tested, built, and deployed!'
         }
         failure {
-            echo "❌ PIPELINE FAILED: Inspect stage output and logs above."
+            echo '❌ PIPELINE FAILED: Inspect stage output and logs above.'
         }
         always {
             cleanWs deleteDirs: false, notFailBuild: true, patterns: [[pattern: 'venv/**', type: 'EXCLUDE']]
