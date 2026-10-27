@@ -152,45 +152,45 @@ pipeline {
 
         stage('6. Verify Application Health') {
             steps {
-                echo '=========================================================='
-                echo "STAGE 6: VERIFYING CONTAINER HEALTH VIA ${HEALTH_ENDPOINT}"
-                echo '=========================================================='
+                echo 'STAGE 6: VERIFYING APPLICATION HEALTH'
+
                 script {
                     if (isUnix()) {
-                        sh """
-                            echo "Waiting for container and Gunicorn WSGI server to initialize..."
-                            MAX_RETRIES=12
-                            RETRY_COUNT=1
-                            DEPLOY_SUCCESS=0
-
-                            while [ \$RETRY_COUNT -le \$MAX_RETRIES ]; do
-                                echo "Health probe \$RETRY_COUNT of \$MAX_RETRIES..."
-                                HTTP_CODE=\$(curl -s -o health_output.json -w "%{http_code}" ${HEALTH_ENDPOINT} || echo "000")
-
-                                if [ "\$HTTP_CODE" = "200" ]; then
-                                    echo "✅ Health check PASSED with HTTP 200 OK!"
-                                    cat health_output.json
-                                    echo ""
-                                    DEPLOY_SUCCESS=1
-                                    break
-                                else
-                                    echo "Probe returned HTTP \$HTTP_CODE. Retrying in 5 seconds..."
-                                    sleep 5
-                                fi
-                                RETRY_COUNT=\$((RETRY_COUNT + 1))
-                            done
-
-                            if [ \$DEPLOY_SUCCESS -ne 1 ]; then
-                                echo "❌ CRITICAL DEPLOYMENT FAILURE: /health endpoint verification failed."
-                                echo "=== Recent Container Logs for Diagnosis ==="
-                                docker logs --tail 100 ${CONTAINER_NAME} || true
-                                exit 1
-                            fi
-                        """
-                    } else {
-                        bat """
-                            python -c "import time, urllib.request, json, sys; max_tries=12; [print(f'Health probe {i+1} of {max_tries}...') or (time.sleep(5) if (lambda: [False] if True else [])() else None) or ((urllib.request.urlopen('${HEALTH_ENDPOINT}', timeout=5).getcode() == 200 and (print('✅ Health check PASSED with HTTP 200 OK!') or sys.exit(0))) if True else None) for i in range(max_tries)]; sys.exit(1)"
-                        """
+                        sh '''
+                    for i in $(seq 1 12); do
+                        echo "Health probe $i of 12..."
+                        if curl -fsS --max-time 5 "$HEALTH_ENDPOINT" > /dev/null; then
+                            echo "Health check PASSED: HTTP 200"
+                            exit 0
+                        fi
+                        if [ "$i" -lt 12 ]; then sleep 5; fi
+                    done
+                    echo "Health check FAILED"
+                    docker logs --tail 100 "$CONTAINER_NAME"
+                    exit 1
+                '''
+            } else {
+                        powershell '''
+                    $url = $env:HEALTH_ENDPOINT
+                    for ($i = 1; $i -le 12; $i++) {
+                        Write-Output "Health probe $i of 12..."
+                        try {
+                            $r = Invoke-WebRequest -Uri $url -TimeoutSec 5 -UseBasicParsing
+                            if ([int]$r.StatusCode -eq 200) {
+                                Write-Output "Health check PASSED: HTTP 200"
+                                exit 0
+                            }
+                        } catch {
+                            Write-Output "Probe failed: $($_.Exception.Message)"
+                        }
+                        if ($i -lt 12) {
+                            Start-Sleep -Seconds 5
+                        }
+                    }
+                    Write-Output "Health check FAILED"
+                    docker logs --tail 100 $env:CONTAINER_NAME
+                    exit 1
+                '''
                     }
                 }
             }
