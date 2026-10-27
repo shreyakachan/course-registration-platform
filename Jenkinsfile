@@ -8,6 +8,7 @@ pipeline {
         CONTAINER_NAME  = 'course-registration-container'
         APP_PORT        = '5000'
         HEALTH_ENDPOINT = 'http://localhost:5000/health'
+        DATA_HOST_PATH = 'C:/Users/HP/Downloads/DEVOPS/DEVOPS/data'
         VOLUME_NAME     = 'course_registration_data'
     }
 
@@ -132,7 +133,7 @@ pipeline {
                                 --name ${CONTAINER_NAME} \\
                                 --restart unless-stopped \\
                                 -p ${APP_PORT}:5000 \\
-                                -v ${VOLUME_NAME}:/app/data \\
+                                -v ${DATA_HOST_PATH}:/app/data \\
                                 -e DATA_DIR=/app/data \\
                                 -e FLASK_CONFIG=production \\
                                 -e SECRET_KEY=production-jenkins-secure-key-2026 \\
@@ -143,7 +144,7 @@ pipeline {
                             docker volume create ${VOLUME_NAME} 2>nul || ver >nul
                             docker stop ${CONTAINER_NAME} 2>nul || ver >nul
                             docker rm ${CONTAINER_NAME} 2>nul || ver >nul
-                            docker run -d --name ${CONTAINER_NAME} --restart unless-stopped -p ${APP_PORT}:5000 -v ${VOLUME_NAME}:/app/data -e DATA_DIR=/app/data -e FLASK_CONFIG=production -e SECRET_KEY=production-jenkins-secure-key-2026 ${IMAGE_NAME}:${IMAGE_TAG}
+                            docker run -d --name ${CONTAINER_NAME} --restart unless-stopped -p ${APP_PORT}:5000 -v ${DATA_HOST_PATH}:/app/data -e DATA_DIR=/app/data -e FLASK_CONFIG=production -e SECRET_KEY=production-jenkins-secure-key-2026 ${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
                 }
