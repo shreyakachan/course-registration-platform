@@ -189,9 +189,9 @@ pipeline {
                             fi
                         """
                     } else {
-                        bat """
-                            python -c "import time, urllib.request, json, sys; max_tries=12; [print(f'Health probe {i+1} of {max_tries}...') or (time.sleep(5) if (lambda: [False] if True else [])() else None) or ((urllib.request.urlopen('${HEALTH_ENDPOINT}', timeout=5).getcode() == 200 and (print('✅ Health check PASSED with HTTP 200 OK!') or sys.exit(0))) if True else None) for i in range(max_tries)]; sys.exit(1)"
-                        """
+                        bat '''
+python -c "import time, urllib.request, sys; url='http://localhost:5000/health'; max_tries=12; exec('for i in range(max_tries):\\n try:\\n  r=urllib.request.urlopen(url, timeout=5)\\n  print(\\'Health check PASSED: HTTP %s\\' % r.status)\\n  sys.exit(0 if r.status == 200 else 1)\\n except Exception as e:\\n  print(\\'Health probe %s failed: %s\\' % (i+1, e))\\n  time.sleep(5)'); sys.exit(1)"
+'''
                     }
                 }
             }
