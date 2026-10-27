@@ -51,4 +51,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=8s --retries=3 \
     CMD curl -f http://localhost:5000/health || exit 1
 
 # Launch production WSGI server (Gunicorn) with 2 workers and 2 threads
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "2", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "2", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
